@@ -4,7 +4,7 @@ from google.auth.transport.requests import Request
 from google.oauth2 import id_token
 from web3 import Web3
 import os
-import mysql.connector
+import pymysql  # Изменили на pymysql
 from datetime import datetime
 
 app = Flask(__name__)
@@ -22,14 +22,20 @@ web3 = Web3(Web3.HTTPProvider("https://mainnet.infura.io/v3/YOUR_INFURA_PROJECT_
 
 # Настройка MySQL
 db_config = {
-    'host': 'localhost',
+    'host': '127.0.0.1',
     'user': 'root',
     'password': '123',
-    'database': 'users'
+    'database': 'users',
+    'cursorclass': pymysql.cursors.DictCursor  # Добавили курсор для удобства работы с данными
 }
 
 def init_db():
-    conn = mysql.connector.connect(**db_config)
+    try:
+        conn = pymysql.connect(**db_config)
+        print("Подключение к базе данных успешно!")
+    except pymysql.MySQLError as err:
+        print(f"Ошибка подключения: {err}")
+
     cursor = conn.cursor()
     cursor.execute('''CREATE TABLE IF NOT EXISTS users (
                         id INT AUTO_INCREMENT PRIMARY KEY,
@@ -88,7 +94,7 @@ def callback():
     last_name = id_info.get("family_name")
 
     # Подключаемся к базе данных
-    conn = mysql.connector.connect(**db_config)
+    conn = pymysql.connect(**db_config)
     cursor = conn.cursor()
 
     # Проверяем, существует ли пользователь с таким google_id
@@ -98,12 +104,12 @@ def callback():
     if user:
         # Если пользователь уже существует, выводим его данные
         wallet_info = {
-            "first_name": user[2],
-            "last_name": user[3],
-            "email": user[4],
-            "wallet_address": user[5],
-            "private_key": user[6],
-            "created_at": user[7]
+            "first_name": user['first_name'],
+            "last_name": user['last_name'],
+            "email": user['email'],
+            "wallet_address": user['wallet_address'],
+            "private_key": user['private_key'],
+            "created_at": user['created_at']
         }
         return render_template("dashboard.html", user_data=wallet_info)
 
@@ -134,5 +140,7 @@ def callback():
     return render_template("dashboard.html", user_data=wallet_info)
 
 if __name__ == "__main__":
+    print("1211")
     init_db()
+    print("12")
     app.run(debug=True, ssl_context=('cert.pem', 'key.pem'), host='0.0.0.0', port=5000)
