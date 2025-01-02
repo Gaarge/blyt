@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Личный кабинет</title>
+</head>
+<body>
+    <h1>Добро пожаловать, {{ user_data['first_name'] }}!</h1>
+    <p>Ваш кошелек: {{ user_data['wallet_address'] }}</p>
+    <p>Приватный ключ: {{ user_data['private_key'] }}</p>
+</body>
+</html>
