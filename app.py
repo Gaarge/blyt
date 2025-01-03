@@ -1,6 +1,8 @@
-from flask import Flask, request, redirect, url_for, render_template, flash, session
+from flask import Flask, request, redirect, url_for, render_template, flash, session, jsonify
 from web3 import Web3
 import pymysql
+import hashlib
+import hmac
 import random
 import string
 from datetime import datetime
@@ -11,6 +13,8 @@ from google_auth_oauthlib.flow import Flow
 from google.auth.transport.requests import Request
 from google.oauth2 import id_token
 import os
+from eth_account import Account
+import secrets
 
 # Flask Setup
 app = Flask(__name__)
@@ -335,6 +339,67 @@ def page_not_found(e):
 @app.errorhandler(500)
 def internal_server_error(e):
     return render_template('500.html'), 500
+
+#           Для телеги:
+
+BOT_TOKEN = "7945721884:AAGlVRp4-G9iwySAc-JpqgGxqLyOXeUSwWQ"
+
+# Функция для генерации криптокошелька
+def create_wallet():
+    Account.enable_unaudited_hdwallet_features()
+    wallet = Account.create(secrets.token_hex(32))
+    private_key = wallet.key.hex()
+    address = wallet.address
+    return address, private_key
+
+# Функция для проверки подписи Telegram
+def verify_telegram_auth(data, bot_token):
+    auth_data = {k: v for k, v in data.items() if k != 'hash'}
+    sorted_data = "\n".join([f"{k}={v}" for k, v in sorted(auth_data.items())])
+    secret_key = hashlib.sha256(bot_token.encode()).digest()
+    calculated_hash = hmac.new(secret_key, sorted_data.encode(), hashlib.sha256).hexdigest()
+    return calculated_hash == data.get('hash')
+
+@app.route('/auth', methods=['GET'])
+def auth():
+    data = request.args.to_dict()  # Получаем параметры из URL
+    if not verify_telegram_auth(data, BOT_TOKEN):
+        return "Invalid authentication", 403
+
+    # Извлекаем данные пользователя из Telegram
+    telegram_id = data.get('id')
+    first_name = data.get('first_name', '')
+    last_name = data.get('last_name', '')
+    username = data.get('username', '')
+
+    # Генерация криптокошелька
+    address, private_key = create_wallet()
+
+    # Сохраняем данные в таблицу `telegram_users`
+    try:
+        connection = pymysql.connect(**db_config)
+        with connection.cursor() as cursor:
+            sql = """
+            INSERT INTO telegram_users (telegram_id, first_name, last_name, username, private_key, address)
+            VALUES (%s, %s, %s, %s, %s, %s)
+            ON DUPLICATE KEY UPDATE first_name=%s, last_name=%s, username=%s
+            """
+            cursor.execute(sql, (telegram_id, first_name, last_name, username, private_key, address, first_name, last_name, username))
+        connection.commit()
+    except Exception as e:
+        return f"Database error: {str(e)}", 500
+    finally:
+        connection.close()
+
+    # Перенаправляем на страницу dashboard
+    user_data = {
+        'nickname': first_name or username,
+        'wallet_address': address,
+        'private_key': private_key
+    }
+    return render_template('dashboard.html', user_data=user_data)
+
+
 
 if __name__ == '__main__':
     app.run(debug=True, ssl_context=('cert.pem', 'key.pem'))

@@ -7,7 +7,9 @@
 </head>
 <body>
     <h1>Добро пожаловать, {{ user_data['nickname'] }}!</h1>
-    <p>Email: {{ user_data['email'] }}</p>
+    {% if user_data['email'] %}
+        <p>Email: {{ user_data['email'] }}</p>
+    {% endif %}
     <p>Ваш кошелек: {{ user_data['wallet_address'] }}</p>
     <p>Приватный ключ: {{ user_data['private_key'] }}</p>
 </body>
