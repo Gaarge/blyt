@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Подтверждение email</title>
+</head>
+<body>
+    <h2>Подтвердите ваш email</h2>
+    <form action="/verify_email" method="POST">
+        <label for="code">Код подтверждения:</label>
+        <input type="text" id="code" name="code" required><br><br>
+        <button type="submit">Подтвердить</button>
+    </form>
+</body>
+</html>
