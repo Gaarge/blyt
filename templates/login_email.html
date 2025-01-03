@@ -3,17 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Вход</title>
+    <title>Вход через email</title>
 </head>
 <body>
     <h1>Вход</h1>
-    <form action="/login_email" method="POST">
+    <form method="POST">
         <label for="authWithLoginOrPassword">Email или Никнейм:</label>
         <input type="text" id="authWithLoginOrPassword" name="authWithLoginOrPassword" required><br><br>
         <label for="password">Пароль:</label>
         <input type="password" id="password" name="password" required><br><br>
         <button type="submit">Войти</button>
     </form>
+
+    {% if message %}
+        <p style="color: red;">{{ message }}</p>
+    {% endif %}
+
     <p>Забыли пароль? <a href="/forgot_password">Восстановить</a></p>
 </body>
 </html>

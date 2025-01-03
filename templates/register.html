@@ -7,7 +7,7 @@
 </head>
 <body>
     <h1>Регистрация</h1>
-    <form action="/register" method="POST">
+    <form method="POST">
         <label for="email">Email:</label>
         <input type="email" id="email" name="email" required><br><br>
         <label for="nickname">Никнейм:</label>
@@ -16,6 +16,11 @@
         <input type="password" id="password" name="password" required><br><br>
         <button type="submit">Зарегистрироваться</button>
     </form>
-    <p>Уже зарегистрированы? <a href="/login_email">Войти</a></p>
+
+    {% if message %}
+        <p style="color: red;">{{ message }}</p>
+    {% endif %}
+
+    <p>Уже зарегистрированы? <a href="/login_email">Войдите</a></p>
 </body>
 </html>
