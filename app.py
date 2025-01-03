@@ -30,8 +30,12 @@ web3 = Web3(Web3.HTTPProvider("https://mainnet.infura.io/v3/YOUR_INFURA_PROJECT_
 
 # Google OAuth2 Configuration
 CLIENT_SECRETS_FILE = "client_secrets.json"
-SCOPES = ["openid", "https://www.googleapis.com/auth/userinfo.email", "https://www.googleapis.com/auth/userinfo.profile"]
-REDIRECT_URI = "https://localhost:5000/callback"
+SCOPES = [
+    "openid",  # Область для получения основного профиля
+    "https://www.googleapis.com/auth/userinfo.email",  # Область для получения email пользователя
+    "https://www.googleapis.com/auth/userinfo.profile"  # Область для получения дополнительной информации о пользователе
+]
+REDIRECT_URI = "https://088a-185-30-229-66.ngrok-free.app/callback"
 
 # Generate random codes
 def generate_verification_code():
@@ -66,9 +70,13 @@ def index():
 def register():
     message = None
     if request.method == 'POST':
-        email = request.form['email']
-        nickname = request.form['nickname']
-        password = request.form['password']
+        email = request.form.get('email')  # Используем .get() для предотвращения ошибки
+        nickname = request.form.get('nickname')
+        password = request.form.get('password')
+
+        if not email or not nickname or not password:
+            message = "Пожалуйста, заполните все поля."
+            return render_template('register.html', message=message)
 
         conn = pymysql.connect(**db_config)
         cursor = conn.cursor()
@@ -102,9 +110,10 @@ def register():
         send_email(email, "Подтверждение регистрации", f"Ваш код подтверждения: {verification_code}")
 
         message = "На вашу почту отправлен код подтверждения."
-        return render_template('verify_email.html', message=message)
+        return redirect(url_for('verify_email'))  # Перенаправляем, а не рендерим
 
     return render_template('register.html', message=message)
+
 
 
 @app.route('/verify_email', methods=['GET', 'POST'])
@@ -112,10 +121,12 @@ def verify_email():
     if request.method == 'POST':
         email = session.get('email')
         nickname = session.get('nickname')
+        password = session.get('password')  # Извлекаем сохраненный пароль
         input_code = request.form['code']
         stored_code = session.get('verification_code')
         auth_type = session.get('auth_type')
 
+        
         if not email or not stored_code or input_code != stored_code:
             flash("Неверный код подтверждения. Повторите попытку.")
             return redirect(url_for('verify_email'))
@@ -123,37 +134,41 @@ def verify_email():
         conn = pymysql.connect(**db_config)
         cursor = conn.cursor()
 
-        if auth_type == 'register':
-            password = session.get('password')
-
+        if auth_type == 'register':  # Обработка регистрации
             # Создаем кошелек
             account = web3.eth.account.create()
             address = account.address
             private_key = account.key.hex()
 
-            # Сохраняем нового пользователя
+            # Вставляем данные в таблицу
             cursor.execute('''INSERT INTO usersWithEmail (email, nickname, password, wallet_address, private_key, created_at)
                               VALUES (%s, %s, %s, %s, %s, %s)''',
                            (email, nickname, password, address, private_key, datetime.now()))
             conn.commit()
             flash("Регистрация успешна.")
 
-        elif auth_type == 'login':
+        elif auth_type == 'login':  # Обработка входа
             flash("Вход выполнен успешно.")
 
         cursor.close()
         conn.close()
-
-        return redirect(url_for('dashboard'))
+        return redirect(url_for('dashboard'))  # Перенаправляем в личный кабинет
+    app.logger.debug(f"Session before redirect to verify_email: {session}")
 
     return render_template('verify_email.html')
+
+
 
 @app.route('/login_email', methods=['GET', 'POST'])
 def login_email():
     message = None
     if request.method == 'POST':
-        auth = request.form['authWithLoginOrPassword']
-        password = request.form['password']
+        auth = request.form.get('authWithLoginOrPassword')  # Используем .get() для безопасности
+        password = request.form.get('password')
+
+        if not auth or not password:
+            message = "Пожалуйста, введите email/никнейм и пароль."
+            return render_template('login_email.html', message=message)
 
         conn = pymysql.connect(**db_config)
         cursor = conn.cursor()
@@ -167,10 +182,11 @@ def login_email():
             return render_template('login_email.html', message=message)
 
         # Сохраняем данные в сессии
-        session.clear()
+        session.clear()  # Очищаем сессию перед сохранением новых данных
         session['email'] = user['email']
         session['nickname'] = user['nickname']
         session['auth_type'] = 'login'
+        session['password'] = password  # Сохраняем пароль, если нужно для верификации
 
         # Генерируем проверочный код и отправляем его
         verification_code = generate_verification_code()
@@ -179,9 +195,11 @@ def login_email():
         send_email(user['email'], "Подтверждение входа", f"Ваш код подтверждения: {verification_code}")
 
         message = "Код подтверждения отправлен на вашу почту."
-        return render_template('verify_email.html', message=message)
+        return redirect(url_for('verify_email'))  # Здесь перенаправляем, а не рендерим
 
     return render_template('login_email.html', message=message)
+
+
 
 
 @app.route('/forgot_password', methods=['GET', 'POST'])
@@ -243,8 +261,9 @@ def dashboard():
 def login():
     flow = Flow.from_client_secrets_file(CLIENT_SECRETS_FILE, scopes=SCOPES)
     flow.redirect_uri = REDIRECT_URI
-    auth_url, state = flow.authorization_url()
-    session['state'] = state
+
+    auth_url, state = flow.authorization_url(access_type='offline', prompt='consent')
+    session['state'] = state  # Сохраняем state для защиты от CSRF атак
     return redirect(auth_url)
 
 @app.route('/callback')
@@ -288,7 +307,6 @@ def callback():
     if user:
         session.clear()
         session['email'] = user['email']
-        flash("Вход через Google успешен.")
         return redirect(url_for('dashboard'))
 
     # Создаем нового пользователя
