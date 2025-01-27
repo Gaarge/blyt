@@ -11,6 +11,9 @@
         <p>Email: {{ user_data['email'] }}</p>
     {% endif %}
     <p>Ваш кошелек: {{ user_data['wallet_address'] }}</p>
-    <p>Приватный ключ: {{ user_data['private_key'] }}</p>
+    {% if user_data['private_key'] %}
+        <p>Приватный ключ(Мы его не храним, запишите этот ключ куда нибудь, иначе никогда не получите доступ к своему кошельку): 
+            {{ user_data['private_key'] }}</p>
+    {% endif %}
 </body>
 </html>

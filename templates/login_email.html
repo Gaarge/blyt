@@ -8,12 +8,22 @@
 <body>
     <h1>Вход</h1>
     <form method="POST">
-        <label for="authWithLoginOrPassword">Email или Никнейм:</label>
-        <input type="text" id="authWithLoginOrPassword" name="authWithLoginOrPassword" required><br><br>
+        <label for="authWithLoginOrNickname">Email или Никнейм:</label>
+        <input type="text" id="authWithLoginOrNickname" name="authWithLoginOrNickname" required><br><br>
         <label for="password">Пароль:</label>
         <input type="password" id="password" name="password" required><br><br>
         <button type="submit">Войти</button>
     </form>
+
+    {% with messages = get_flashed_messages() %}
+        {% if messages %}
+            <ul>
+                {% for message in messages %}
+                    <li style="color: red;">{{ message }}</li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+    {% endwith %}
 
     {% if message %}
         <p style="color: red;">{{ message }}</p>
